@@ -47,6 +47,17 @@ Accuracy: the start time is when the recorder was started. The first frame arriv
 
 Cameras of the same model have the same name, so each one is identified by the device ID the browser engine assigns. Names you give them are stored against that ID. If you move a camera to a different USB port it may be treated as a new camera (new `camN` folder and default name).
 
+## Releases
+
+Pushing a version tag builds installers for Windows, macOS and Linux on GitHub and publishes them as a release:
+
+```bash
+git tag v0.1.0   # must match "version" in package.json
+git push origin v0.1.0
+```
+
+Files: Windows setup and portable `.exe`, macOS `.dmg`/`.zip` (Intel and Apple silicon), Linux `.AppImage` and `.deb`. You can also run the **Release** workflow by hand from the Actions tab; it keeps the files as downloads without publishing. Builds are not signed: Windows may show SmartScreen, and on macOS you need to right-click > Open, or run `xattr -cr /Applications/ABS_MultiCam.app` once.
+
 ## Build installers
 
 Installers must be built on the matching OS (or in CI):

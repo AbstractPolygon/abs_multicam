@@ -65,6 +65,9 @@ child.on('exit', () => {
     check('timecode looks like HH:MM:SS:FF and keeps running', tl.tcFormat && tl.tcTicks);
     check('full-screen button still top-right', tl.fsTopRight);
     check('default file size cap is 4 GB', ui.maxFileBytes === 4 * 1024 ** 3, `(${ui.maxFileBytes})`);
+    const hd = ui.header || {};
+    check('version shown next to the app name', hd.version === 'v' + require('../package.json').version && hd.versionNextToName && hd.sameBaseline, `(${hd.version})`);
+    check('camera count sits next to the tile size slider', hd.countBeforeSlider && hd.countNextToSlider && /^3 cameras$/.test(hd.countText), `(${hd.countText})`);
     console.log('screenshot:', path.join(dir, 'screenshot.png'));
     check('no File/Edit/View menu bar (Windows/Linux)', process.platform === 'darwin' || (ui.menu && ui.menu.appMenu === 'none' && ui.menu.barVisible === false));
     const slots = Object.fromEntries(report.map((c) => [c.folder, c.slot]));

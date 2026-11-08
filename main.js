@@ -421,6 +421,7 @@ async function runUiTest() {
     const follows = (x, y) => !!(b(x).compareDocumentPosition(b(y)) & Node.DOCUMENT_POSITION_FOLLOWING);
     out.order = { autostartThenMotion: follows('sAutoStart', 'sMotion'), motionThenEncoder: follows('sMotion', 'sEncoder'), levelThenEncoder: follows('motionRow', 'sEncoder'), outputLastBeforeApply: follows('sEncoder', 'sOutputDir') && follows('sMinFree', 'sOutputDir') && follows('sOutputDir', 'sApply') };
     out.maxFileBytes = env.maxFileBytes;
+    out.header = { version: b('version').textContent, countText: b('count').textContent, countBeforeSlider: !!(b('count').compareDocumentPosition(b('tileSize')) & Node.DOCUMENT_POSITION_FOLLOWING), countNextToSlider: b('tileSize').getBoundingClientRect().left - b('count').getBoundingClientRect().right < 24 && b('tileSize').getBoundingClientRect().left >= b('count').getBoundingClientRect().right, sameBaseline: getComputedStyle(document.querySelector('.title')).alignItems === 'baseline' && document.querySelector('.title').contains(b('version')), versionNextToName: b('version').getBoundingClientRect().left - document.querySelector('h1').getBoundingClientRect().right < 24 };
     out.tileInfo = [...document.querySelectorAll('.stat')].map((e) => e.textContent).join(' | ');
     b('btnSettings').click();
     return out;

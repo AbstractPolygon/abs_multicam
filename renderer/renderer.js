@@ -670,6 +670,7 @@ function bindUI() {
 // ---------- start-up ----------
 async function init() {
   env = await mc.env();
+  $('#version').textContent = `v${env.version}`;
   settings = await mc.getSettings();
   bindUI();
   mc.onLog(log);

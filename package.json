@@ -29,15 +29,37 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "mac": {
       "category": "public.app-category.video",
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
@@ -48,15 +70,38 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "category": "AudioVideo"
+      "category": "AudioVideo",
+      "maintainer": "AbstractPolygon <noreply@github.com>"
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
     }
   },
   "devDependencies": {
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
     "pixelmatch": "^5.3.0"
+  },
+  "homepage": "https://github.com/AbstractPolygon/abs_multicam",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbstractPolygon/abs_multicam.git"
   }
 }

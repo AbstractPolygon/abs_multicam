@@ -83,3 +83,5 @@ aside#settings > * { margin-right: 16px; }
 #motionRow input[type=range] { margin-top: 6px; }
 .ticks { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--muted); }
 .badge.ok { color: var(--ok); }
+
+.title { display: flex; align-items: baseline; gap: 8px; }
