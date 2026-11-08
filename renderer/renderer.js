@@ -1087,7 +1087,7 @@ async function init() {
     b.textContent = `Update v${u.version}`;
     b.title = u.mode === 'install' ? 'Restart and install the new version' : 'Open the download page';
     b.classList.remove('hidden');
-    b.onclick = () => {
+    b.onclick = () => {                                  // (mode 'install' covers the .msi upgrade too)
       if (u.mode === 'install' && recordingAll && !confirm('Recording is running. Restart and install the update now? Recording will stop.')) return;
       mc.installUpdate();
     };

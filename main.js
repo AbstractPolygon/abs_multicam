@@ -474,6 +474,9 @@ function startDevWatch() {
 }
 
 // ---------- loop cleanup ----------
+// Recordings are named <camera>_YYYYMMDD_HHMMSS[_n].webm|mp4. Cleanup only ever deletes files with that name, so
+// pointing the output folder at a folder that already holds other videos can never remove them.
+const OWN_FILE = /^[A-Za-z0-9_-]+_\d{8}_\d{6}(_\d+)?\.(webm|mp4)$/;
 async function listFinished() {
   const root = settings.outputDir;
   const open = new Set([...openRecs.values()].map((r) => r.file));
@@ -486,7 +489,7 @@ async function listFinished() {
     try { names = await fsp.readdir(dir); } catch (_) { continue; }
     const files = [];
     for (const n of names) {
-      if (!(n.endsWith('.webm') || n.endsWith('.mp4'))) continue;
+      if (!OWN_FILE.test(n) && !n.endsWith('.part.mp4')) continue;      // never touch files the app did not create
       const f = path.join(dir, n);
       try { const st = await fsp.stat(f); files.push({ f, size: st.size, mtime: st.mtimeMs, open: open.has(f) || n.endsWith('.part.mp4') || converting.has(f) }); } catch (_) { /* gone */ }
     }
@@ -589,6 +592,7 @@ ipcMain.on('app:close-ok', () => { if (win && !win.isDestroyed()) win.destroy();
 
 ipcMain.handle('smoke:done', async (_e, report) => {
   await conversionsDone();                              // tests: let MP4 conversion finish before listing files
+  if (process.env.MULTICAM_MSI_DRYRUN && updates) updates.install();      // tests: press "Update" (records the msiexec command instead of running it)
   const files = [];
   for (const g of await listFinished()) for (const x of g.files) files.push({ file: path.relative(settings.outputDir, x.f), size: x.size });
   let gpu = {};
@@ -923,7 +927,7 @@ app.whenReady().then(async () => {
     log, enabled: () => settings.autoUpdate,
     send: (u) => { if (win && !win.isDestroyed()) win.webContents.send('update:ready', u); }
   });
-  if (!SMOKE || process.env.MULTICAM_UPDATE_URL) updates.start(SMOKE ? 3000 : 20000);
+  if (!SMOKE || process.env.MULTICAM_UPDATE_URL || process.env.MULTICAM_RELEASE_API) updates.start(SMOKE ? 3000 : 20000);
 });
 
 app.on('child-process-gone', (_e, d) => {                 // GPU / capture-service crashes show up here
