@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "View and loop-record any number of USB webcams at once (Windows, macOS, Linux).",
   "main": "main.js",
-  "license": "MIT",
+  "license": "PolyForm-Shield-1.0.0",
   "private": true,
   "scripts": {
     "start": "electron .",
@@ -24,7 +24,9 @@
     "files": [
       "main.js",
       "preload.js",
+      "updates.js",
       "renderer/**/*",
+      "build/icon.png",
       "package.json"
     ],
     "win": {
@@ -84,7 +86,9 @@
         }
       ],
       "category": "AudioVideo",
-      "maintainer": "AbstractPolygon <noreply@github.com>"
+      "maintainer": "AbstractPolygon <noreply@github.com>",
+      "synopsis": "Multi-camera preview and loop recorder",
+      "description": "View and loop-record any number of USB webcams at once."
     },
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "nsis": {
@@ -92,6 +96,30 @@
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
+    },
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**/*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "AbstractPolygon",
+        "repo": "abs_multicam"
+      }
+    ],
+    "deb": {
+      "depends": [
+        "libgtk-3-0 | libgtk-3-0t64",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0 | libatspi2.0-0t64",
+        "libuuid1",
+        "libsecret-1-0",
+        "libasound2 | libasound2t64"
+      ]
     }
   },
   "devDependencies": {
@@ -103,5 +131,11 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AbstractPolygon/abs_multicam.git"
-  }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11",
+    "ffmpeg-static": "^5.3.0"
+  },
+  "author": "AbstractPolygon",
+  "desktopName": "abs-multicam.desktop"
 }

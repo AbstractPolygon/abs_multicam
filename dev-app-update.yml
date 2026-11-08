@@ -1,0 +1,5 @@
+# Used only by scripts/test-update.js (MULTICAM_UPDATE_URL) so electron-updater can run from source.
+provider: github
+owner: AbstractPolygon
+repo: abs_multicam
+updaterCacheDirName: abs-multicam-updater

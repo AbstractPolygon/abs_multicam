@@ -9,6 +9,7 @@
 <body>
   <header>
     <div class="title"><h1>ABS_MultiCam</h1><span id="version" class="muted"></span></div>
+    <button id="btnUpdate" class="update hidden"></button>
     <span class="spacer"></span>
     <span id="count" class="muted">0 cameras</span>
     <input id="tileSize" type="range" min="200" max="900" step="20" title="Preview tile size">
@@ -28,17 +29,25 @@
   <aside id="settings" class="hidden">
     <h2>Settings</h2>
     <label class="check"><input id="sAutoStart" type="checkbox"> Start recording automatically when the app opens</label>
+    <label class="check"><input id="sTray" type="checkbox"> Minimize to system tray</label>
+    <label class="check"><input id="sUpdate" type="checkbox"> Check for updates automatically</label>
     <label class="check"><input id="sMotion" type="checkbox"> Record on movement</label>
     <div id="motionRow" class="hidden">
       <label>Movement
         <input id="sMotionLevel" type="range" min="0" max="2" step="1">
         <div class="ticks"><span>Subtle</span><span>Normal</span><span>High</span></div>
       </label>
+      <label>Stop after no movement (seconds)
+        <input id="sHold" type="number" min="1" max="600" step="1">
+      </label>
     </div>
+    <label class="check"><input id="sBurn" type="checkbox"> Burn camera name and time into the video</label>
+    <label class="check"><input id="sMp4" type="checkbox"> Save recordings as MP4</label>
     <label>Video encoder
       <select id="sEncoder">
         <option value="high">GPU</option>
         <option value="cpu">CPU</option>
+        <option value="v4l2" hidden>Raspberry Pi hardware</option>
       </select>
     </label>
     <div class="two">
@@ -57,8 +66,8 @@
       <label>Codec
         <select id="sCodec"><option value="h264">H.264</option><option value="vp8">VP8</option><option value="vp9">VP9</option></select>
       </label>
-      <label>Bitrate (kbps)
-        <input id="sBitrate" type="number" min="100" step="100">
+      <label>Bitrate <span id="sBitrateVal" class="val"></span>
+        <input id="sBitrate" type="range" min="250" max="20000" step="250">
       </label>
     </div>
     <div class="two">

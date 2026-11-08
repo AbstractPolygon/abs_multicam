@@ -59,12 +59,9 @@ footer { position: relative; border-top: 1px solid var(--line); background: var(
 .grip { color: var(--muted); cursor: grab; letter-spacing: -2px; user-select: none; }
 .bar { flex-wrap: wrap; }
 .bar input.name { flex: 1 1 130px; }
-.fsbtn { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; font-size: 16px; background: rgba(0,0,0,.55); border-color: transparent; opacity: .55; }
-.vwrap:hover .fsbtn, .fsbtn:focus { opacity: 1; }
 .vwrap:fullscreen { aspect-ratio: auto; width: 100vw; height: 100vh; background: #000; }
 .vwrap:fullscreen video { object-fit: contain; }
 .bar .pair { display: flex; gap: 6px; flex: 0 0 auto; }
-.fsbtn { top: 8px; right: 8px; bottom: auto; }
 button.icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 34px; padding: 0; }
 button.icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 
@@ -85,3 +82,58 @@ aside#settings > * { margin-right: 16px; }
 .badge.ok { color: var(--ok); }
 
 .title { display: flex; align-items: baseline; gap: 8px; }
+
+.camopts { display: flex; gap: 8px; padding: 0 10px 8px; flex-wrap: wrap; }
+.camopts label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 11px; }
+.camopts select { background: #11141a; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; font: inherit; font-size: 12px; }
+.camset { padding: 3px 6px; }
+.camset.active { border-color: var(--accent); color: var(--accent); }
+.camset svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.bar button.camset { width: 30px; height: 28px; }
+
+button.update { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 10px; margin-left: 10px; }
+
+aside label .val { float: right; color: var(--text); }
+
+.tile.flash .vwrap::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: .6; pointer-events: none; }
+
+#disk.warn { color: #f59e0b; font-weight: 600; }
+#disk.crit { color: #ef4444; font-weight: 600; }
+
+.zonebox { position: absolute; display: none; pointer-events: none; touch-action: none; }
+.zonebox.shown { display: block; }
+.zonebox.editing { pointer-events: auto; cursor: crosshair; outline: 1px dashed var(--accent); }
+.zone { position: absolute; box-sizing: border-box; border: 2px solid; pointer-events: none; }
+.zone.watch { border-color: #22c55e; background: rgba(34, 197, 94, .18); }
+.zone.ignore { border-color: #ef4444; background: rgba(239, 68, 68, .22); }
+.zone.rubber { border-style: dashed; border-color: #fff; background: rgba(255, 255, 255, .12); }
+.zonebtns { display: flex; gap: 6px; align-items: flex-end; }
+.zonebtns button { font-size: 12px; padding: 3px 8px; }
+
+.zonebox.hit { outline: 2px solid #facc15; }
+.zonebox.hit .zone { border-color: #facc15; background: rgba(250, 204, 21, .38); animation: zonepulse .5s ease-in-out infinite alternate; }
+@keyframes zonepulse { from { background: rgba(250, 204, 21, .22); } to { background: rgba(250, 204, 21, .5); } }
+.hitbadge { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: #facc15; color: #111; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 10px; pointer-events: none; }
+
+/* the two buttons over the picture: identical size and style, side by side in the top-right corner */
+.vbtn { position: absolute; top: 8px; width: 34px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); border-color: transparent; border-radius: 6px; opacity: .55; }
+.vbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.fsbtn { right: 8px; }
+.snapbtn { right: 48px; }
+.vwrap:hover .vbtn, .vbtn:focus { opacity: 1; }
+
+.zonebox.editing .zone.sel { pointer-events: auto; cursor: move; border-color: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.7); }
+.zh { position: absolute; width: 10px; height: 10px; box-sizing: border-box; background: #fff; border: 1px solid #000; pointer-events: auto; }
+.zh-nw { left: -5px; top: -5px; cursor: nwse-resize; } .zh-n { left: calc(50% - 5px); top: -5px; cursor: ns-resize; }
+.zh-ne { right: -5px; top: -5px; cursor: nesw-resize; } .zh-e { right: -5px; top: calc(50% - 5px); cursor: ew-resize; }
+.zh-se { right: -5px; bottom: -5px; cursor: nwse-resize; } .zh-s { left: calc(50% - 5px); bottom: -5px; cursor: ns-resize; }
+.zh-sw { left: -5px; bottom: -5px; cursor: nesw-resize; } .zh-w { left: -5px; top: calc(50% - 5px); cursor: ew-resize; }
+.zdel { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; padding: 0; border-radius: 50%; background: #ef4444; color: #fff; border: none; font-size: 14px; line-height: 1; cursor: pointer; pointer-events: auto; }
+
+/* the info line (size, fps, bitrate) stays at the bottom of every card, whatever is expanded above it */
+.tile { display: flex; flex-direction: column; }
+.tile > .vwrap, .tile > .bar, .tile > .camopts { flex: none; }
+.tile > .stat { margin-top: auto; padding-top: 6px; }
+.zdel { display: flex; align-items: center; justify-content: center; }
+.zdel svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; pointer-events: none; }

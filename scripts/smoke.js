@@ -68,6 +68,15 @@ child.on('exit', () => {
     const hd = ui.header || {};
     check('version shown next to the app name', hd.version === 'v' + require('../package.json').version && hd.versionNextToName && hd.sameBaseline, `(${hd.version})`);
     check('camera count sits next to the tile size slider', hd.countBeforeSlider && hd.countNextToSlider && /^3 cameras$/.test(hd.countText), `(${hd.countText})`);
+    const ty = ui.tray || {};
+    check('minimize to tray hides the window, tray icon restores it', ty.hidden && ty.hadTray && ty.restored, JSON.stringify(ty));
+    check('tile shows measured fps and dropped frames', (ui.tileInfo || '').split(' | ').every((t) => / fps\s+·\s+\d+ dropped/.test(t)), `(${(ui.tileInfo || '').slice(0, 90)})`);
+    const bt = ui.bitrate || {};
+    check('bitrate in settings is a slider showing its value', bt.type === 'range' && bt.text === '2.5 Mbps' && bt.value === '2500', JSON.stringify(bt));
+    const ci = ui.cardInfo || {};
+    check('card info line is locked to the bottom of every card, also while one card\'s settings are open', ci.sameEverywhere && ci.unchanged, JSON.stringify(ci));
+    check('card info shows the measured bitrate while recording', (ui.tileInfo || '').split(' | ').every((x) => x.includes(' Mbps')), '(' + (ui.tileInfo || '').slice(0, 110) + ')');
+    check('encoder dropdown does not offer the Pi hardware option on a normal PC', !/Raspberry/.test(ui.encoder || ''), JSON.stringify(ui.encoder));
     console.log('screenshot:', path.join(dir, 'screenshot.png'));
     check('no File/Edit/View menu bar (Windows/Linux)', process.platform === 'darwin' || (ui.menu && ui.menu.appMenu === 'none' && ui.menu.barVisible === false));
     const slots = Object.fromEntries(report.map((c) => [c.folder, c.slot]));

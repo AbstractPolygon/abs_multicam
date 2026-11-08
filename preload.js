@@ -3,6 +3,16 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('mc', {
   env: () => ipcRenderer.invoke('app:env'),
+  updateState: () => ipcRenderer.invoke('update:state'),
+  onUpdate: (cb) => ipcRenderer.on('update:ready', (_e, u) => cb(u)),
+  installUpdate: () => ipcRenderer.send('update:install'),
+  saveSnapshot: (folder, bytes) => ipcRenderer.invoke('snapshot:save', folder, bytes),
+  hwInfo: () => ipcRenderer.invoke('hw:info'),
+  recOpenHw: (folder, params) => ipcRenderer.invoke('rec:openHw', folder, params),
+  recFrame: (id, bytes) => ipcRenderer.send('rec:frame', id, bytes),
+  recSize: (id) => ipcRenderer.invoke('rec:size', id),
+  onHwFailed: (cb) => ipcRenderer.on('rec:hw-failed', (_e, v) => cb(v)),
+  recState: (on) => ipcRenderer.send('rec:state', on),
   gpuInfo: () => ipcRenderer.invoke('gpu:info'),
   relaunch: () => ipcRenderer.invoke('app:relaunch'),
   getSettings: () => ipcRenderer.invoke('settings:get'),

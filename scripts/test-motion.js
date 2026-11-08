@@ -52,6 +52,29 @@ check('Normal fires on a medium moving object', triggers['medium object moving (
 check('High fires on a large moving object', triggers['large object moving (60x60)'][2]);
 check('all levels fire on a large moving object', triggers['large object moving (60x60)'].every(Boolean));
 
+// ---- zones ----
+const measureMask = (level, make, mask) => { const d = M.createDetector(pixelmatch); let max = 0; for (let i = 0; i < 12; i++) { const r = d.feed(make(i), level, mask); if (i >= M.LAG) max = Math.max(max, r); } return max; };
+const leftMover = (i) => frame({ noise: 3, square: { x: 5 + (i * 3) % 40, y: 30, s: 14 } });   // moves in the left third only
+const left = { x: 0, y: 0, w: 0.34, h: 1 }, right = { x: 0.66, y: 0, w: 0.34, h: 1 };
+const fires = (r, lv) => r >= LEVELS[lv].ratio;
+const noMask = measureMask(1, leftMover, null);
+check('baseline: a small mover in the left third fires Normal with no zones', fires(noMask, 1), `(${(noMask * 100).toFixed(2)}%)`);
+let r1 = measureMask(1, leftMover, M.buildMask([right], 'inside'));
+check('zone only on the right: movement on the left is ignored', !fires(r1, 1), `(${(r1 * 100).toFixed(2)}%)`);
+r1 = measureMask(1, leftMover, M.buildMask([left], 'inside'));
+check('zone on the left: the movement is caught', fires(r1, 1), `(${(r1 * 100).toFixed(2)}%)`);
+r1 = measureMask(1, leftMover, M.buildMask([left], 'outside'));
+check('"outside" mode with the zone on the left: the movement in it is ignored', !fires(r1, 1), `(${(r1 * 100).toFixed(2)}%)`);
+r1 = measureMask(1, leftMover, M.buildMask([right], 'outside'));
+check('"outside" mode with the zone on the right: the movement on the left is caught', fires(r1, 1), `(${(r1 * 100).toFixed(2)}%)`);
+r1 = measureMask(0, (i) => frame({ noise: 3, bright: ((i * 7) % 5) * 15 - 30 }), M.buildMask([left], 'inside'));
+check('brightness flicker inside a zone is still ignored', !fires(r1, 0), `(${(r1 * 100).toFixed(2)}%)`);
+r1 = measureMask(1, leftMover, M.buildMask([{ x: 0, y: 0, w: 1, h: 1 }], 'outside'));
+check('zones covering everything in "outside" mode watch nothing', r1 === 0);
+const mk = M.buildMask([{ x: 0, y: 0, w: 0.5, h: 0.5 }], 'inside');
+check('mask covers the right share of the picture', Math.abs(mk.count / (M.WIDTH * M.HEIGHT) - 0.25) < 0.02, `(${(mk.count / (M.WIDTH * M.HEIGHT) * 100).toFixed(1)}%)`);
+check('no zones = no mask (whole picture)', M.buildMask([], 'inside') === null && M.buildMask(undefined, 'outside') === null);
+
 // trigger state machine
 const t = M.createTrigger({ startSamples: 2, holdMs: 8000 });
 const seq = [];
