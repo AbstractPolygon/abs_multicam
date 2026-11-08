@@ -64,6 +64,7 @@ child.on('exit', () => {
     check('timecode is to the right of "live"', tl.tcRightOfLive);
     check('timecode looks like HH:MM:SS:FF and keeps running', tl.tcFormat && tl.tcTicks);
     check('full-screen button still top-right', tl.fsTopRight);
+    check('default file size cap is 4 GB', ui.maxFileBytes === 4 * 1024 ** 3, `(${ui.maxFileBytes})`);
     console.log('screenshot:', path.join(dir, 'screenshot.png'));
     check('no File/Edit/View menu bar (Windows/Linux)', process.platform === 'darwin' || (ui.menu && ui.menu.appMenu === 'none' && ui.menu.barVisible === false));
     const slots = Object.fromEntries(report.map((c) => [c.folder, c.slot]));

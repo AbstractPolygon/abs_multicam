@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 40);
 
-function setStatus(cam, text) { cam.status = text; cam.badge.textContent = text; }
+function setStatus(cam, text) { cam.status = text; cam.badge.textContent = text; cam.badge.classList.toggle('ok', text === 'live'); }
 
 function updateStats() {
   for (const cam of cams.values()) {
@@ -446,7 +446,7 @@ function disarm(cam) {
 
 // ---------- recording (rolling segments) ----------
 function pickMime() {
-  const pref = settings.codec === 'auto' ? 'h264' : settings.codec;
+  const pref = settings.codec;
   const order = [pref, ...['h264', 'vp8', 'vp9'].filter((c) => c !== pref)];   // preferred codec first, others as fallback
   for (const c of order) { const m = `video/webm;codecs=${c}`; if (MediaRecorder.isTypeSupported(m)) return m; }
   return MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
@@ -454,15 +454,24 @@ function pickMime() {
 
 async function beginSegment(cam) {
   const { id: recId } = await mc.recOpen(cam.cfg.folder);
+  if (!cam.recording || !cam.stream) { await mc.recClose(recId, Date.now()); return null; }   // recording was stopped while the file was being opened
   const mime = pickMime();
   const rec = new MediaRecorder(cam.stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: settings.bitrateKbps * 1000 });
-  const seg = { rec, recId, chain: Promise.resolve(), closed: null };
+  const seg = { rec, recId, chain: Promise.resolve(), closed: null, bytes: 0 };
+  // Start the next file a little before the cap, so even the final chunk of this one stays under it.
+  const limit = env.maxFileBytes, splitAt = limit - Math.min(64 * 1024 * 1024, limit * 0.25);
   rec.ondataavailable = (ev) => {
     if (!ev.data || !ev.data.size) return;
     seg.chain = seg.chain.then(async () => {
       const buf = new Uint8Array(await ev.data.arrayBuffer());
       cam.bytesTotal += buf.length;
+      seg.bytes += buf.length;
       mc.recWrite(recId, buf);
+      if (seg.bytes >= splitAt && !seg.splitting && cam.seg === seg && cam.recording) {      // file reached the cap: continue in a new file, no gap
+        seg.splitting = true;
+        log(`${cam.cfg.name}: file reached ${(limit / 1024 ** 3).toFixed(limit >= 1024 ** 3 ? 0 : 3)} GB, splitting`);
+        rotate(cam);
+      }
     });
   };
   seg.closed = new Promise((resolve) => {
@@ -489,7 +498,7 @@ async function startRec(cam) {
   cam.recording = true;
   try { await beginSegment(cam); }
   catch (e) { cam.recording = false; log(`${cam.cfg.name}: cannot start recording (${e.message})`); return; }
-  scheduleRotate(cam);
+  if (cam.recording) scheduleRotate(cam);
 }
 
 function scheduleRotate(cam) {
@@ -503,7 +512,7 @@ async function rotate(cam) {
   try { await beginSegment(cam); }              // new file starts before the old one stops: no gap
   catch (e) { log(`${cam.cfg.name}: segment rotate failed (${e.message})`); }
   if (old && old.rec.state !== 'inactive') old.rec.stop();
-  scheduleRotate(cam);
+  if (cam.recording) scheduleRotate(cam);
 }
 
 async function stopRec(cam) {

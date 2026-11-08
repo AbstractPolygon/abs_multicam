@@ -76,6 +76,7 @@ const settingsPath = () => path.join(app.getPath('userData'), 'settings.json');
 function loadSettings() {
   let s = { ...DEFAULTS };
   try { s = { ...s, ...JSON.parse(fs.readFileSync(settingsPath(), 'utf8')) }; } catch (_) { /* first run */ }
+  if (!['vp8', 'vp9', 'h264'].includes(s.codec)) s.codec = 'h264';      // default, and what the old "auto" meant
   if (!s.outputDir) s.outputDir = SMOKE_DIR ? path.join(SMOKE_DIR, 'out') : path.join(app.getPath('videos'), 'ABS_MultiCam');
   if (process.env.MULTICAM_SEG_MIN) s.segmentMinutes = parseFloat(process.env.MULTICAM_SEG_MIN) || s.segmentMinutes;
   return s;
@@ -99,7 +100,7 @@ function sanitize(p) {
   num('fps', 1, 120); num('bitrateKbps', 100, 1e5); num('tileMin', 200, 1200);
   if (typeof p.outputDir === 'string' && p.outputDir) out.outputDir = p.outputDir;
   if (typeof p.nameFilter === 'string') out.nameFilter = p.nameFilter.slice(0, 100);
-  if (['auto', 'vp8', 'vp9', 'h264'].includes(p.codec)) out.codec = p.codec;
+  if (['vp8', 'vp9', 'h264'].includes(p.codec)) out.codec = p.codec;
   if (['high', 'cpu'].includes(p.encoder)) out.encoder = p.encoder;
   if (typeof p.motion === 'boolean') out.motion = p.motion;
   if (p.motionLevel !== undefined) out.motionLevel = Math.min(2, Math.max(0, Math.round(Number(p.motionLevel)) || 0));
@@ -339,7 +340,8 @@ ipcMain.handle('app:relaunch', async () => {             // encoder choice only 
   app.relaunch({ args: process.argv.slice(1) });
   app.exit(0);
 });
-ipcMain.handle('app:env',() => ({ fake: FAKE, smoke: SMOKE, platform: process.platform, version: app.getVersion() }));
+ipcMain.handle('app:env',() => ({ fake: FAKE, smoke: SMOKE, platform: process.platform, version: app.getVersion(),
+  maxFileBytes: process.env.MULTICAM_MAX_FILE_MB ? Number(process.env.MULTICAM_MAX_FILE_MB) * 1024 * 1024 : 4 * 1024 ** 3 }));   // each video file is capped at 4 GB
 ipcMain.handle('settings:get', () => settings);
 ipcMain.handle('settings:set', (_e, partial) => {
   settings = { ...settings, ...sanitize(partial || {}) };
@@ -418,6 +420,7 @@ async function runUiTest() {
     b('sMotion').click(); await wait(100); out.motionHiddenWhenUnchecked = hid();
     const follows = (x, y) => !!(b(x).compareDocumentPosition(b(y)) & Node.DOCUMENT_POSITION_FOLLOWING);
     out.order = { autostartThenMotion: follows('sAutoStart', 'sMotion'), motionThenEncoder: follows('sMotion', 'sEncoder'), levelThenEncoder: follows('motionRow', 'sEncoder'), outputLastBeforeApply: follows('sEncoder', 'sOutputDir') && follows('sMinFree', 'sOutputDir') && follows('sOutputDir', 'sApply') };
+    out.maxFileBytes = env.maxFileBytes;
     out.tileInfo = [...document.querySelectorAll('.stat')].map((e) => e.textContent).join(' | ');
     b('btnSettings').click();
     return out;
