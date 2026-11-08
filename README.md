@@ -1,6 +1,6 @@
 # ABS_MultiCam
 
-Electron app that shows live previews of **any number of USB webcams** at once and loop-records each one to disk. Runs on Windows, macOS and Linux from the same code.
+Electron app that shows live previews of **any number of USB webcams** at once and loop-records each one to disk. Runs on Windows, macOS and Linux.
 
 ## Run
 
