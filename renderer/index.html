@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' mediastream: blob:; img-src 'self' data:; style-src 'self'; script-src 'self'">
+  <title>ABS_MultiCam</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>ABS_MultiCam</h1>
+    <span id="count" class="muted">0 cameras</span>
+    <span class="spacer"></span>
+    <input id="tileSize" type="range" min="200" max="900" step="20" title="Preview tile size">
+    <button id="btnRecord" class="primary icon"></button>
+    <button id="btnPreview" class="icon"></button>
+    <button id="btnFolder" class="icon"></button>
+    <button id="btnSettings" class="icon"></button>
+  </header>
+
+  <main>
+    <div id="empty" class="empty hidden">
+      No cameras found. Plug one in (without an SD card, if it has a card slot) and it will appear here.
+    </div>
+    <div id="grid"></div>
+  </main>
+
+  <aside id="settings" class="hidden">
+    <h2>Settings</h2>
+    <label class="check"><input id="sAutoStart" type="checkbox"> Start recording automatically when the app opens</label>
+    <label class="check"><input id="sMotion" type="checkbox"> Record on movement</label>
+    <div id="motionRow" class="hidden">
+      <label>Movement
+        <input id="sMotionLevel" type="range" min="0" max="2" step="1">
+        <div class="ticks"><span>Subtle</span><span>Normal</span><span>High</span></div>
+      </label>
+    </div>
+    <label>Video encoder
+      <select id="sEncoder">
+        <option value="high">GPU</option>
+        <option value="cpu">CPU</option>
+      </select>
+    </label>
+    <div class="two">
+      <label>Resolution
+        <select id="sRes">
+          <option value="640x480">640 x 480</option>
+          <option value="1280x720">1280 x 720</option>
+          <option value="1920x1080">1920 x 1080</option>
+        </select>
+      </label>
+      <label>Frame rate
+        <select id="sFps"><option>15</option><option>24</option><option>30</option><option>60</option></select>
+      </label>
+    </div>
+    <div class="two">
+      <label>Codec
+        <select id="sCodec"><option value="auto">auto</option><option value="vp8">VP8</option><option value="vp9">VP9</option><option value="h264">H.264</option></select>
+      </label>
+      <label>Bitrate (kbps)
+        <input id="sBitrate" type="number" min="100" step="100">
+      </label>
+    </div>
+    <div class="two">
+      <label>Segment length (minutes)
+        <input id="sSegment" type="number" min="0.02" step="0.5">
+      </label>
+      <label>Max size per camera
+        <input id="sMaxGB" type="number" min="0" step="1">
+      </label>
+    </div>
+    <div class="two">
+      <label>Max age (hours, 0 = none)
+        <input id="sMaxAge" type="number" min="0" step="1">
+      </label>
+      <label>Keep drive free (GB)
+        <input id="sMinFree" type="number" min="0" step="1">
+      </label>
+    </div>
+    <label>Output folder
+      <div class="row"><input id="sOutputDir" readonly><button id="sBrowse">Browse</button></div>
+    </label>
+    <div class="row">
+      <button id="sApply" class="primary">Apply</button>
+      <button id="sClose">Close</button>
+    </div>
+  </aside>
+
+  <footer>
+    <div id="logResize"></div>
+    <span id="disk" class="muted">&nbsp;</span>
+    <pre id="log"></pre>
+  </footer>
+
+  <script src="vendor/pixelmatch.js"></script>
+  <script src="motion.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
