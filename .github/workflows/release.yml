@@ -25,8 +25,8 @@ jobs:
           - { name: Windows,     os: windows-latest,  flag: --win }
           - { name: macOS-arm64, os: macos-latest,    flag: --mac --arm64 }    # Apple silicon
           - { name: macOS-x64,   os: macos-15-intel,  flag: --mac --x64 }      # Intel (ffmpeg is bundled per chip, so one job each)
-          - { name: Linux,       os: ubuntu-latest,   flag: --linux }
-          - { name: Linux-arm64, os: ubuntu-24.04-arm, flag: --linux --arm64 }   # Raspberry Pi (64-bit Raspberry Pi OS)
+          - { name: Linux,       os: ubuntu-latest,   flag: --linux AppImage deb --x64 }
+          - { name: Linux-arm64, os: ubuntu-24.04-arm, flag: --linux AppImage deb --arm64 }   # Raspberry Pi (64-bit Raspberry Pi OS)
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,10 +48,11 @@ jobs:
       - name: Movement detector tests
         run: node scripts/test-motion.js
 
-      - name: Build installers
-        run: npx electron-builder ${{ matrix.flag }} ${{ secrets.CSC_LINK && secrets.APPLE_ID && startsWith(matrix.os, 'macos') && '-c.mac.notarize=true' || '' }} --publish never
+      # Signing values are only handed to electron-builder when the secrets exist: an empty value would be read as a
+      # file path and fail the macOS build.
+      - name: Signing setup
+        shell: bash
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'      # only sign when a certificate is provided below
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -59,6 +60,21 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$WIN_CSC_LINK" ]; then echo "WIN_CSC_LINK=$WIN_CSC_LINK" >> "$GITHUB_ENV"; echo "WIN_CSC_KEY_PASSWORD=$WIN_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"; fi
+          if [ -n "$CSC_LINK" ]; then
+            echo "CSC_LINK=$CSC_LINK" >> "$GITHUB_ENV"; echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+            if [ -n "$APPLE_ID" ]; then
+              echo "APPLE_ID=$APPLE_ID" >> "$GITHUB_ENV"; echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD" >> "$GITHUB_ENV"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"; echo "NOTARIZE_FLAG=-c.mac.notarize=true" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Build installers
+        shell: bash
+        run: npx electron-builder ${{ matrix.flag }} $NOTARIZE_FLAG --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'      # only sign when a certificate is provided above
 
       # latest.yml / latest-linux.yml and the .blockmap files are what the in-app updater reads on Windows and Linux.
       - uses: actions/upload-artifact@v4
