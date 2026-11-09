@@ -51,13 +51,13 @@ const dirL = run('h264', (dir) => {
   const src = fs.readdirSync(os.tmpdir()).filter((d) => d.startsWith('multicam-mp4-h264-')).map((d) => path.join(os.tmpdir(), d, 'out', 'cam1')).find((d) => fs.existsSync(d));
   const tmp = fs.readdirSync(src).find((f) => f.endsWith('.mp4'));
   // make a real old .webm by re-wrapping an mp4 as webm is not possible for h264; use a tiny VP8 clip instead
-  spawnSync(ffmpeg, ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15', '-t', '3', '-c:v', 'libvpx', path.join(cam, 'cam9_old.webm')]);
-  const old = new Date(Date.now() - 3600e3); fs.utimesSync(path.join(cam, 'cam9_old.webm'), old, old);
-  fs.writeFileSync(path.join(cam, 'stale.part.mp4'), 'junk');
+  spawnSync(ffmpeg, ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15', '-t', '3', '-c:v', 'libvpx', path.join(cam, 'cam9_20200101_000000.webm')]);
+  const old = new Date(Date.now() - 3600e3); fs.utimesSync(path.join(cam, 'cam9_20200101_000000.webm'), old, old);
+  fs.writeFileSync(path.join(cam, 'cam9_20200102_000000.part.mp4'), 'junk');
 });
 const leftCam = path.join(dirL, 'out', 'cam9');
 const names = fs.readdirSync(leftCam);
-check('leftover .webm from an earlier session is converted after start-up', names.includes('cam9_old.mp4') && !names.includes('cam9_old.webm'), names.join(', '));
-check('stale .part.mp4 is removed', !names.includes('stale.part.mp4'));
+check('leftover .webm from an earlier session is converted after start-up', names.includes('cam9_20200101_000000.mp4') && !names.includes('cam9_20200101_000000.webm'), names.join(', '));
+check('stale .part.mp4 is removed', !names.includes('cam9_20200102_000000.part.mp4'));
 console.log(ok ? 'PASS' : 'FAIL');
 process.exit(ok ? 0 : 1);

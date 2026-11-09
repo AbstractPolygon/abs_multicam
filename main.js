@@ -167,6 +167,10 @@ function log(msg) {
 const openRecs = new Map(); // recId -> { file, stream, bytes }
 let nextRecId = 1;
 
+// Recordings are named <camera>_<stamp>[_n].webm|mp4 (rec:open and rec:openHw below; the camera part is sanitised to
+// A-Za-z0-9_-). Cleanup only ever deletes files with that name, so pointing the output folder at a folder that
+// already holds other videos can never remove them. Keep this in step with stamp() and the name builders.
+const OWN_FILE = /^[A-Za-z0-9_-]+_\d{8}_\d{6}(_\d+)?(\.part)?\.(webm|mp4)$/;
 function stamp(d = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
@@ -437,6 +441,7 @@ async function convertLeftovers() {
     let names = []; try { names = await fsp.readdir(dir); } catch (_) { continue; }
     for (const n of names) {
       const f = path.join(dir, n);
+      if (!OWN_FILE.test(n)) continue;                    // only the app's own recordings, never other videos in the folder
       if (n.endsWith('.part.mp4')) { try { await fsp.unlink(f); } catch (_) { /* gone */ } continue; }
       if (!n.endsWith('.webm') || open.has(f) || names.includes(n.replace(/\.webm$/, '.mp4'))) continue;
       try { if (Date.now() - (await fsp.stat(f)).mtimeMs < 30000) continue; } catch (_) { continue; }
@@ -474,9 +479,6 @@ function startDevWatch() {
 }
 
 // ---------- loop cleanup ----------
-// Recordings are named <camera>_YYYYMMDD_HHMMSS[_n].webm|mp4. Cleanup only ever deletes files with that name, so
-// pointing the output folder at a folder that already holds other videos can never remove them.
-const OWN_FILE = /^[A-Za-z0-9_-]+_\d{8}_\d{6}(_\d+)?\.(webm|mp4)$/;
 async function listFinished() {
   const root = settings.outputDir;
   const open = new Set([...openRecs.values()].map((r) => r.file));
@@ -489,7 +491,7 @@ async function listFinished() {
     try { names = await fsp.readdir(dir); } catch (_) { continue; }
     const files = [];
     for (const n of names) {
-      if (!OWN_FILE.test(n) && !n.endsWith('.part.mp4')) continue;      // never touch files the app did not create
+      if (!OWN_FILE.test(n)) continue;
       const f = path.join(dir, n);
       try { const st = await fsp.stat(f); files.push({ f, size: st.size, mtime: st.mtimeMs, open: open.has(f) || n.endsWith('.part.mp4') || converting.has(f) }); } catch (_) { /* gone */ }
     }

@@ -4,6 +4,7 @@
 // of that file and start the app again. A wrong hash must be refused (the app falls back to the download page).
 const http = require('http'), crypto = require('crypto');
 const fs = require('fs'), os = require('os'), path = require('path');
+const { spawn } = require('child_process');
 const electron = require('electron');
 
 if (process.platform !== 'win32') { console.log('skipped (the .msi path is Windows only)'); process.exit(0); }
@@ -13,6 +14,8 @@ const check = (n, c, x = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${n} ${x}`
 const version = '9.9.9';
 const name = `ABS_MultiCam-${version}-win-x64.msi`;
 const payload = crypto.randomBytes(400 * 1024);
+const tmpFile = path.join(os.tmpdir(), name);
+const rm = (f) => { try { fs.unlinkSync(f); } catch (_) { /* none */ } };
 
 function run(label, digest) {
   return new Promise((resolve) => {
@@ -34,32 +37,31 @@ function run(label, digest) {
       const env = { ...process.env, MULTICAM_FAKE: '1', MULTICAM_SMOKE: '12', MULTICAM_SMOKE_DIR: dir, MULTICAM_SMOKE_UI: '',
         MULTICAM_FORCE_MSI: '1', MULTICAM_RELEASE_API: `http://127.0.0.1:${server.address().port}`, MULTICAM_MSI_DRYRUN: dry };
       delete env.ELECTRON_RUN_AS_NODE; delete env.MULTICAM_UPDATE_URL; delete env.PORTABLE_EXECUTABLE_FILE;
-      const child = require('child_process').spawn(electron, ['.'], { cwd: path.join(__dirname, '..'), env, stdio: 'ignore' });
+      const child = spawn(electron, ['.'], { cwd: path.join(__dirname, '..'), env, stdio: 'ignore' });
       const killer = setTimeout(() => child.kill(), 60000);
       child.on('exit', () => {
         clearTimeout(killer); server.close();
         const r = JSON.parse(fs.readFileSync(path.join(dir, 'result.json'), 'utf8'));
         const cmd = fs.existsSync(dry) ? fs.readFileSync(dry, 'utf8') : '';
         const tmp = path.join(os.tmpdir(), name);
-        resolve({ label, hits, r, cmd, tmp, logs: (r.logs || []).filter((l) => /update/i.test(l)).join(' | ') });
+        console.log(label + ':', (r.logs || []).filter((l) => /update/i.test(l)).join(' | '));
+        resolve({ hits, r, cmd });
       });
     });
   });
 }
 
 (async () => {
-  try { fs.unlinkSync(path.join(os.tmpdir(), name)); } catch (_) { /* none */ }
+  rm(tmpFile);
   const good = await run('matching hash', 'sha256:' + crypto.createHash('sha256').update(payload).digest('hex'));
-  console.log('log:', good.logs);
   check('good hash: the .msi was downloaded', good.hits.includes(`/dl/${name}`));
   check('good hash: update is offered as an install of the right version', good.r.update && good.r.update.version === version && good.r.update.mode === 'install', JSON.stringify(good.r.update));
-  check('good hash: the downloaded file is exactly the release file', fs.existsSync(good.tmp) && fs.readFileSync(good.tmp).equals(payload));
+  check('good hash: the downloaded file is exactly the release file', fs.existsSync(tmpFile) && fs.readFileSync(tmpFile).equals(payload));
   check('good hash: Update runs msiexec /i on that file and restarts the app', /msiexec \/i "[^"]*9\.9\.9-win-x64\.msi" \/passive/.test(good.cmd) && /&& start ""/.test(good.cmd), good.cmd);
-  try { fs.unlinkSync(good.tmp); } catch (_) { /* gone */ }
+  rm(tmpFile);
 
   const bad = await run('wrong hash', 'sha256:' + '0'.repeat(64));
-  console.log('log:', bad.logs);
-  check('wrong hash: the file is refused and removed', !fs.existsSync(bad.tmp));
+  check('wrong hash: the file is refused and removed', !fs.existsSync(tmpFile) && !fs.existsSync(tmpFile + '.part'));
   check('wrong hash: falls back to the download page, nothing is installed', bad.r.update && bad.r.update.mode === 'open' && bad.cmd === '', JSON.stringify(bad.r.update));
 
   const none = await run('no hash listed', undefined);
