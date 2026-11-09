@@ -1,7 +1,7 @@
 {
   "name": "abs-multicam",
   "productName": "ABS_MultiCam",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "View and loop-record any number of USB webcams at once (Windows, macOS, Linux).",
   "main": "main.js",
   "license": "PolyForm-Shield-1.0.0",
