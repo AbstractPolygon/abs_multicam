@@ -26,6 +26,7 @@ For development, `npm run dev` instead refreshes the open window whenever you ed
 - **Video encoder** (Settings): GPU or CPU. GPU uses the fastest GPU's hardware H.264 encoder (the default) and needs H.264 as the codec; with VP8/VP9 or the CPU choice, encoding runs on the CPU. Changing it restarts the app.
 - **Motion zones**: in a tile's settings (sliders button) press **Edit zones**, drag on the picture to add a zone and click a zone to remove it. "Movement inside zones" watches only those areas; "Movement outside zones" ignores them (a TV, a tree). Zones are saved per camera.
 - **Snapshots**: the camera button on a tile (or **S**) saves a full-resolution PNG to `<output folder>/snapshots`.
+- **Depth view**: the layers button on a tile cycles off / depth over the picture / depth only. It estimates relative depth (near = warm, far = blue; not metres) from that one camera with Depth Anything V2 Small. The first time, the app downloads the 94 MB model once (checksum-verified) into its data folder. Runs on the GPU (WebGPU) when available, otherwise on the CPU, which is slow (a Raspberry Pi manages about one frame per second or less). "Depth detail" in the tile settings trades speed for sharpness. Nothing is recorded with the depth overlay.
 - **Keyboard shortcuts**: **R** record/stop, **P** preview, **S** snapshot (selected camera, otherwise all), **F** full screen for the selected camera, **O** open the recordings folder, **Esc** closes Settings. Ignored while typing in a field.
 - **Low disk space**: the footer turns amber below twice the "Keep drive free" amount and red below it.
 - **Per-camera settings**: the sliders button on a tile sets that camera's movement sensitivity, stop-after time and bitrate (the bitrate applies from its next file).
@@ -119,6 +120,7 @@ node scripts/test-motion-app.js 1  # app end to end with prepared clips (level 0
 node scripts/test-encoder.js 10    # encoder choices (add --real for attached cameras)
 node scripts/test-zones-app.js     # motion zones drawn with pointer events, end to end
 node scripts/test-shortcuts.js     # keyboard shortcuts and snapshots
+node scripts/test-depth.js [model.onnx]  # depth helpers; with the model file also the real app (add --download to test the in-app download)
 node scripts/test-disk.js          # low-disk-space warning
 node scripts/test-pi.js            # Raspberry Pi first-run defaults (simulated)
 node scripts/test-hw.js            # hardware-encoder recording path (software stand-in), fallbacks

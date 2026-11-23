@@ -20,6 +20,7 @@ const ICONS = {
   sliders: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
   camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
   expand: '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>',
+  depth: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
   stop: '<circle cx="12" cy="12" r="9"/><rect x="8.5" y="8.5" width="7" height="7" rx="1" fill="currentColor" stroke="none"/>'
 };
 function setIcon(btn, name, tip) {
@@ -221,14 +222,81 @@ async function snapshot(cam) {
   } catch (e) { log(`${cam.cfg.name}: snapshot failed (${e.message})`); }
 }
 
+// ---------- depth view ----------
+// One shared model session; every camera with the depth view on takes turns. Relative depth only (near = warm, far = blue).
+const depthEngine = Depth.createEngine({ log });
+let depthLoading = null, depthPct = null;
+mc.onDepthProgress((p) => { depthPct = p; });
+function ensureDepth() {
+  if (depthEngine.ready) return Promise.resolve();
+  if (!depthLoading) depthLoading = (async () => {
+    if (!(await mc.depthStatus()).ready) { const r = await mc.depthEnsure(); if (!r.ok) throw new Error(r.error); }
+    depthPct = null;
+    await depthEngine.load('app://abs-multicam/models/depth.onnx');
+  })().finally(() => { depthLoading = null; depthPct = null; });
+  return depthLoading;
+}
+function setDepth(cam, mode) {
+  cam.depthMode = mode;
+  cam.depthC.classList.toggle('hidden', !mode);
+  cam.depthC.classList.toggle('solo', mode === 2);
+  cam.depthBtn.classList.toggle('active', !!mode);
+  if (!mode) cam.depthText = '';
+  if (mode && !cam.depthRun) depthLoop(cam);
+}
+async function depthLoop(cam) {
+  cam.depthRun = true;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const small = document.createElement('canvas'), sctx = small.getContext('2d', { willReadFrequently: true });
+  const smoother = Depth.createSmoother(), g = cam.depthC.getContext('2d');
+  let scratch = null, u8 = null, img = null, key = '', win0 = null, lastT = -1;
+  try {
+    while (cam.depthMode && cams.get(cam.id) === cam) {
+      if (!depthEngine.ready) {
+        cam.depthText = depthPct != null ? `depth model ${Math.round(depthPct * 100)}%` : 'loading depth model';
+        if (!depthLoading) { try { await ensureDepth(); } catch (e) { log(`${cam.cfg.name}: depth view unavailable (${e.message || e})`); cam.depthText = ''; setDepth(cam, 0); break; } }
+        else await sleep(250);
+        continue;
+      }
+      const v = cam.video;
+      if (!v.videoWidth || document.hidden || !settings.preview || !cam.stream) { await sleep(250); continue; }
+      const shown = v.getVideoPlaybackQuality().totalVideoFrames;
+      if (shown === lastT) { await sleep(10); continue; }                  // no new camera frame yet: nothing to compute
+      lastT = shown;
+      const size = Depth.inputSize(v.videoWidth, v.videoHeight, cam.cfg.depthQuality || 'normal');
+      if (key !== size.w + 'x' + size.h) { key = size.w + 'x' + size.h; small.width = size.w; small.height = size.h; smoother.reset(); }
+      const t0 = performance.now();
+      try {
+        sctx.drawImage(v, 0, 0, size.w, size.h);
+        const rgba = sctx.getImageData(0, 0, size.w, size.h).data;
+        if (!scratch || scratch.length !== size.w * size.h * 3) scratch = new Float32Array(size.w * size.h * 3);
+        const r = await depthEngine.run(rgba, size, scratch);
+        if (!cam.depthMode) break;
+        if (cam.depthC.width !== r.w || cam.depthC.height !== r.h) { cam.depthC.width = r.w; cam.depthC.height = r.h; img = null; }
+        if (!img) img = g.createImageData(r.w, r.h);
+        u8 = smoother.apply(r.data, u8);
+        Depth.colorize(u8, img.data);
+        g.putImageData(img, 0, 0);
+        const now = performance.now();
+        if (!win0) win0 = { t: now, n: 0 };
+        win0.n++;
+        if (now - win0.t >= 1000) { cam.depthText = `depth ${(win0.n * 1000 / (now - win0.t)).toFixed(1)} fps (${depthEngine.provider})`; win0 = null; }
+        cam.depthFrames = (cam.depthFrames || 0) + 1;
+      } catch (e) { log(`${cam.cfg.name}: depth failed (${e.message || e})`); setDepth(cam, 0); break; }
+      await sleep(0);
+    }
+  } finally { cam.depthRun = false; if (!cam.depthMode) cam.depthText = ''; }
+}
+
 // ---------- tiles ----------
 function buildTile(cam) {
   const el = document.createElement('div');
   el.className = 'tile';
   el.innerHTML = `
-    <div class="vwrap"><video muted playsinline autoplay></video><div class="noprev hidden">Preview off</div><div class="zonebox"></div><span class="hitbadge hidden">Movement</span>
+    <div class="vwrap"><video muted playsinline autoplay></video><canvas class="depthc hidden"></canvas><div class="noprev hidden">Preview off</div><div class="zonebox"></div><span class="hitbadge hidden">Movement</span>
       <span class="rec hidden">&#9679; REC</span>
       <div class="vstate"><span class="badge"></span><span class="tc">--:--:--:--</span></div>
+      <button class="vbtn depthbtn"></button>
       <button class="vbtn snapbtn"></button>
       <button class="vbtn fsbtn"></button></div>
     <div class="bar"><span class="grip" title="Drag the card to reorder it">&#8942;&#8942;</span>
@@ -263,6 +331,8 @@ function buildTile(cam) {
         <select class="o-hold"><option value="default">Default</option><option value="3">3 s</option><option value="8">8 s</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="300">5 min</option></select></label>
       <label>Zones
         <select class="o-zonemode"><option value="inside">Inside zones</option><option value="outside">Outside zones</option></select></label>
+      <label>Depth detail
+        <select class="o-depthq"><option value="fast">Fast</option><option value="normal">Normal</option><option value="fine">Fine</option></select></label>
       <div class="zonebtns"><button class="zone-edit" title="Drag on the picture to add a zone. Click a zone to select it: drag to move, drag the handles to resize, Delete key or the red x to remove.">Edit zones</button><button class="zone-clear" title="Remove all zones">Clear</button></div>
     </div>
     <div class="stat"></div>`;
@@ -429,6 +499,11 @@ function buildTile(cam) {
   const snapBtn = el.querySelector('.snapbtn');
   setIcon(snapBtn, 'camera', 'Snapshot (S)');
   snapBtn.addEventListener('click', (e) => { e.stopPropagation(); snapshot(cam); });
+  cam.depthC = el.querySelector('.depthc'); cam.depthBtn = el.querySelector('.depthbtn'); cam.depthMode = 0;
+  setIcon(cam.depthBtn, 'depth', 'Depth view: off / over the picture / depth only');
+  cam.depthBtn.addEventListener('click', (e) => { e.stopPropagation(); setDepth(cam, (cam.depthMode + 1) % 3); });
+  const dq = el.querySelector('.o-depthq'); dq.value = cam.cfg.depthQuality || 'normal';
+  dq.addEventListener('change', () => { cam.cfg.depthQuality = dq.value; saveCameras(); });
   setIcon(el.querySelector('.fsbtn'), 'expand', 'Full screen (F, or double-click the picture). Esc to leave.');
   el.querySelector('.fsbtn').addEventListener('click', (e) => { e.stopPropagation(); toggleFullscreen(cam); });
   cam.video.addEventListener('dblclick', () => toggleFullscreen(cam));
@@ -479,6 +554,7 @@ function updateStats() {
     if (cam.info) parts.push(cam.info);
     if (cam.fpsText) parts.push(cam.fpsText);
     if (cam.brText) parts.push(cam.brText);
+    if (cam.depthMode && cam.depthText) parts.push(cam.depthText);
     if (cam.recording || cam.bytesTotal) parts.push(fmtBytes(cam.bytesTotal));
     if (cam.motion && !cam.recording) parts.push('no movement');
     cam.stat.textContent = parts.join('  ·  ') || ' ';
@@ -563,6 +639,7 @@ async function addCam(d) {
 async function removeCam(cam) {
   log(`camera removed: ${cam.cfg.name}`);
   clearTimeout(cam.retry); cam.retry = null;
+  cam.depthMode = 0;
   await stopRec(cam);
   closeStream(cam);
   cam.el.remove();

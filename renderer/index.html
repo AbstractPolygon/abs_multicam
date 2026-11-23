@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' mediastream: blob:; img-src 'self' data:; style-src 'self'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' mediastream: blob:; img-src 'self' data:; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'">
   <title>ABS_MultiCam</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -103,6 +103,7 @@
 
   <script src="vendor/pixelmatch.js"></script>
   <script src="motion.js"></script>
+  <script src="depth.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

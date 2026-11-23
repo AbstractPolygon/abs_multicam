@@ -613,9 +613,16 @@ ipcMain.handle('smoke:done', async (_e, report) => {
   try { zoneHit = await win.webContents.executeJavaScript('window.__zoneHit || null'); } catch (_) { /* ignore */ }
   let zoneCount = null;
   try { zoneCount = await win.webContents.executeJavaScript('window.__zoneCount || null'); } catch (_) { /* ignore */ }
+  let depthProbe = null;
+  if (process.env.MULTICAM_SMOKE_DEPTH) {
+    try { depthProbe = await win.webContents.executeJavaScript(`(() => { const c = [...cams.values()][0]; if (!c) return null;
+      const g = c.depthC.getContext('2d'), w = c.depthC.width, h = c.depthC.height, d = w && h ? g.getImageData(0, 0, w, h).data : [];
+      const cols = new Set(); for (let i = 0; i < d.length; i += 4 * 7) cols.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]);
+      return { mid: window.__depthMid, mode: c.depthMode, frames: c.depthFrames || 0, text: c.depthText, w, h, colors: cols.size, visible: !c.depthC.classList.contains('hidden'), stat: c.stat.textContent }; })()`); } catch (_) { /* ignore */ }
+  }
   let disk = null;
   try { disk = await win.webContents.executeJavaScript('({ text: document.getElementById("disk").textContent, cls: document.getElementById("disk").className })'); } catch (_) { /* ignore */ }
-  const result = { report, files, gpu, logs, disk, isPi: IS_PI, settingsSnapshot: { width: settings.width, height: settings.height, fps: settings.fps, bitrateKbps: settings.bitrateKbps, tileMin: settings.tileMin, encoder: settings.encoder }, zoneCount, zoneHit, zoneProbe, update: updates ? updates.current() : null, bounds: win && !win.isDestroyed() ? win.getNormalBounds() : null, workAreas: screen.getAllDisplays().map((d) => d.workArea) };
+  const result = { report, files, gpu, logs, disk, isPi: IS_PI, settingsSnapshot: { width: settings.width, height: settings.height, fps: settings.fps, bitrateKbps: settings.bitrateKbps, tileMin: settings.tileMin, encoder: settings.encoder }, zoneCount, zoneHit, zoneProbe, depthProbe, update: updates ? updates.current() : null, bounds: win && !win.isDestroyed() ? win.getNormalBounds() : null, workAreas: screen.getAllDisplays().map((d) => d.workArea) };
   try { fs.writeFileSync(path.join(SMOKE_DIR, 'result.json'), JSON.stringify(result, null, 2)); } catch (_) { /* ignore */ }
   setTimeout(() => app.exit(0), 200);
 });
@@ -802,6 +809,11 @@ function createWindow() {
         if (mode === '1') window.__motionFeed = { cam1: make(40, () => true), cam2: make(40, () => false) };
         else { const act = mode === 'small' ? () => true : () => Date.now() - t0 < 5000; window.__motionFeed = { cam1: make(10, act), cam2: make(10, act) }; }
       })()`);   // installed immediately, before any camera can be armed
+      if (process.env.MULTICAM_SMOKE_DEPTH) setTimeout(() => win.webContents.executeJavaScript(`(async () => {
+        for (let i = 0; i < 60 && ![...cams.values()].length; i++) await new Promise((r) => setTimeout(r, 100));
+        const cam = [...cams.values()][0]; setDepth(cam, 2);     // depth only
+        setTimeout(() => { window.__depthMid = cam.depthText; }, 25000);
+      })()`), 500);
       if (process.env.MULTICAM_SMOKE_PERCAM) setTimeout(() => win.webContents.executeJavaScript(`(async () => {
         const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         const plan = ${process.env.MULTICAM_SMOKE_PERCAM};
@@ -892,6 +904,55 @@ function createWindow() {
 }
 
 let updates = null;
+// ---------- depth model (downloaded once, on request, from a pinned revision and checked against its SHA-256) ----------
+const DEPTH_MODEL = {
+  file: 'depth-anything-v2-small.onnx', size: 99060839,
+  sha256: 'afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c',
+  url: 'https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model.onnx'
+};
+const depthModelPath = () => path.join(app.getPath('userData'), 'models', DEPTH_MODEL.file);
+let depthVerified = false, depthJob = null;
+const sha256File = (file) => new Promise((resolve, reject) => {
+  const h = require('crypto').createHash('sha256');
+  fs.createReadStream(file).on('data', (d) => h.update(d)).on('end', () => resolve(h.digest('hex'))).on('error', reject);
+});
+async function depthModelOk() {
+  if (depthVerified) return true;
+  try {
+    const f = depthModelPath();
+    if ((await fsp.stat(f)).size !== DEPTH_MODEL.size || await sha256File(f) !== DEPTH_MODEL.sha256) return false;
+    return (depthVerified = true);
+  } catch (_) { return false; }
+}
+async function ensureDepthModel(progress) {
+  if (await depthModelOk()) return true;
+  const file = depthModelPath(), part = file + '.part';
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  log('depth: downloading the model (' + Math.round(DEPTH_MODEL.size / 1048576) + ' MB)');
+  const res = await net.fetch(DEPTH_MODEL.url);
+  if (!res.ok || !res.body) throw new Error('download failed (HTTP ' + res.status + ')');
+  const out = fs.createWriteStream(part), hash = require('crypto').createHash('sha256');
+  let got = 0;
+  try {
+    for await (const chunk of res.body) {
+      hash.update(chunk); got += chunk.length;
+      if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+      progress(Math.min(1, got / DEPTH_MODEL.size));
+    }
+    await new Promise((r, j) => out.end((e) => (e ? j(e) : r())));
+    if (got !== DEPTH_MODEL.size || hash.digest('hex') !== DEPTH_MODEL.sha256) throw new Error('downloaded file does not match the expected checksum');
+    await fsp.rename(part, file);
+  } catch (e) { out.destroy(); await fsp.rm(part, { force: true }); throw e; }
+  depthVerified = true;
+  log('depth: model downloaded');
+  return true;
+}
+ipcMain.handle('depth:status', async () => ({ ready: await depthModelOk(), mb: Math.round(DEPTH_MODEL.size / 1048576) }));
+ipcMain.handle('depth:ensure', (e) => {
+  if (!depthJob) depthJob = ensureDepthModel((p) => { if (!e.sender.isDestroyed()) e.sender.send('depth:progress', p); }).finally(() => { depthJob = null; });
+  return depthJob.then(() => ({ ok: true }), (err) => ({ ok: false, error: String(err.message || err) }));
+});
+
 ipcMain.handle('update:state', () => (updates ? updates.current() : null));
 ipcMain.on('update:install', () => { if (updates) updates.install(); });
 
@@ -903,6 +964,7 @@ app.whenReady().then(async () => {
     const u = new URL(req.url);
     let p = decodeURIComponent(u.pathname);
     if (p === '/' || p === '') p = '/index.html';
+    if (p === '/models/depth.onnx') return depthVerified ? net.fetch(pathToFileURL(depthModelPath()).toString()) : new Response('not downloaded', { status: 404 });
     const file = path.normalize(path.join(RENDERER_DIR, p));
     if (!file.startsWith(RENDERER_DIR)) return new Response('forbidden', { status: 403 });
     return net.fetch(pathToFileURL(file).toString());

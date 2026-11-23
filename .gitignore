@@ -4,3 +4,4 @@ recordings/
 *.log
 .DS_Store
 dist-pi/
+renderer/vendor/ort/

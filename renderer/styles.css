@@ -137,3 +137,8 @@ aside label .val { float: right; color: var(--text); }
 .tile > .stat { margin-top: auto; padding-top: 6px; }
 .zdel { display: flex; align-items: center; justify-content: center; }
 .zdel svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+
+.vwrap .depthc { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: .55; pointer-events: none; }
+.vwrap .depthc.solo { opacity: 1; background: #000; }
+.depthbtn { right: 88px; }
+.vbtn.active { opacity: 1; color: var(--accent); }
